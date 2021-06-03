@@ -11,6 +11,7 @@ import boto3
 from boto3.s3.transfer import S3Transfer
 import os
 import shutil
+import pandas as pd 
 
 session = boto3.Session(profile_name='default')
 client = session.client('s3')
@@ -41,10 +42,7 @@ class TextImageDataset(Dataset):
         df = pd.read_csv("Train_GCC-dalle.tsv", sep='\t')
         print('Loading training data finished.')
 
-        text_files = {}
-        for i, row in df.iterrows():
-            text_files[row['filename']] = row['caption']
-        self.text_files = text_files
+        self.text_files = df.set_index('filename').to_json(orient='index')
         print('Creating text_files finished.')
 
         self.text_len = text_len
@@ -81,7 +79,7 @@ class TextImageDataset(Dataset):
 
         # LOAD TEXT
         text_file = self.text_files[key]
-        descriptions = text_file.read_text().split('\n') # shouldn't need this... interesting!
+        descriptions = text_file['caption'].split('\n') # shouldn't need this... interesting!
         descriptions = list(filter(lambda t: len(t) > 0, descriptions))
         try:
             description = choice(descriptions)
