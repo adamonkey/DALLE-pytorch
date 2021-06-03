@@ -10,33 +10,11 @@ import csv
 import boto3
 from boto3.s3.transfer import S3Transfer
 import os
+import shutil
 
 session = boto3.Session(profile_name='default')
 client = session.client('s3')
 transfer = S3Transfer(client)
-
-# TODO: need to write the function to deal with the .tsv dataset
-
-'''
-img = df.iloc[42][1]
-(zlib.crc32(img.encode('utf-8')) & 0xffffffff)
-'''
-
-import pandas as pd
-import zlib
-def create_captions_folder(folder):
-    
-    assert folder
-    
-    df = pd.read_csv('Train_GCC-training.tsv', sep='\t', header=None)
-    df.columns=['caption','url']
-    for i, row in df.iterrows():
-        unique = (zlib.crc32(row['caption'].encode('utf-8')) & 0xffffffff)
-        fname = f'{i}_{unique}'
-        
-        with open(fname, 'wb') as out_file:
-            out_file.write(row['caption'])
-
 
 class TextImageDataset(Dataset):
     def __init__(self,
@@ -55,17 +33,19 @@ class TextImageDataset(Dataset):
         super().__init__()
         self.shuffle = shuffle
         path = Path(folder)
+        self.image_path = f'{path}/images'
+        
+        if not os.path.exists(self.image_path):
+            os.mkdir(self.image_path)
+            
+        df = pd.read_csv("Train_GCC-dalle.tsv", sep='\t')
+        print('Loading training data finished.')
 
-
-        with open("Train_GCC-training.tsv") as fd:
-            rd = csv.reader(fd, delimiter="\t", quotechar='"')
-            for row in rd:
-                print(row)
-                
-        text_files = [*path.glob('**/*.txt')]
-        self.text_files = {text_file.stem: text_file for text_file in text_files}
-
-        # original code takes intersection, this is also unnecessary...
+        text_files = {}
+        for i, row in df.iterrows():
+            text_files[row['filename']] = row['caption']
+        self.text_files = text_files
+        print('Creating text_files finished.')
 
         self.text_len = text_len
         self.truncate_captions = truncate_captions
@@ -99,10 +79,6 @@ class TextImageDataset(Dataset):
     def __getitem__(self, ind):
         key = self.keys[ind]
 
-        # OPTIONS: 
-        # - store it in memory
-        # - (DO THIS ONE) actually write the text files. interesting ... might make sense...if I can do it. (now I just have touch...?)
-
         # LOAD TEXT
         text_file = self.text_files[key]
         descriptions = text_file.read_text().split('\n') # shouldn't need this... interesting!
@@ -121,13 +97,11 @@ class TextImageDataset(Dataset):
         ).squeeze(0)
 
         # LOAD IMAGE
-        s3_image_path = f's3illustration'
-        local_image_path = f'{self.image_folder}'
+        s3_image_path = f's3illustration/{key}'
+        local_image_path = f'{self.image_path}/{key}'
         try:
             if not os.path.exists(local_image_path):
-                
                 transfer.download_file(s3_image_path, local_image_path)
-            # put S3 loading here too ... 
             image_tensor = self.image_transform(PIL.Image.open(local_image_path))
         except (PIL.UnidentifiedImageError, OSError) as corrupt_image_exceptions:
             print(f"An exception occurred trying to load file {local_image_path}.")
@@ -138,15 +112,5 @@ class TextImageDataset(Dataset):
         return tokenized_text, image_tensor
 
     def flush():
-      '''remove all images in self.image_dir'''
-      # TODO
-      # occasionally flush all the images ... (on start for example)
-      # and like ... errr ... 
-
-
-# this is kind of unnecessary. the text_file part ... 
-# LOAD TEXT (do I store it in memory...? that's kind of ... hmm ... it's 1GB in memory)
-# that's too much...
-# well ... actually without the links, it might be half. 
-# I think I have to store it in memory
-
+        '''ocassionally removes all images in self.image_path'''
+        shutil.rmtree(self.image_dir)

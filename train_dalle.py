@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import time
+import numpy
 
 import torch
 import wandb  # Quit early if user doesn't have wandb installed.
