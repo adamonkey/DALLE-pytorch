@@ -13,6 +13,7 @@ import os
 import shutil
 import json
 import pandas as pd 
+import botocore
 
 session = boto3.Session(profile_name='default')
 client = session.client('s3')
@@ -97,11 +98,15 @@ class TextImageDataset(Dataset):
         ).squeeze(0)
 
         # LOAD IMAGE
-        s3_image_path = f's3illustration/{key}'
         local_image_path = f'{self.image_path}/{key}'
         try:
             if not os.path.exists(local_image_path):
-                transfer.download_file(s3_image_path, local_image_path)
+                try:
+                    transfer.download_file('s3illustration', f'training/{key}', local_image_path)
+                except botocore.exceptions.ClientError as no_file_exception:
+                    # print(f'no file found for training/{key}')
+                    return self.skip_sample(ind)
+            # print(f'success for training/{key}')
             image_tensor = self.image_transform(PIL.Image.open(local_image_path))
         except (PIL.UnidentifiedImageError, OSError) as corrupt_image_exceptions:
             print(f"An exception occurred trying to load file {local_image_path}.")

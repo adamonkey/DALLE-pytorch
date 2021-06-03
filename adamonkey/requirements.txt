@@ -1,2 +1,10 @@
+pandas
+numpy
+requests
+tqdm
+python-magic
+boto3
+jupyterlab
+ipywidgets
 dalle-pytorch
 wandb

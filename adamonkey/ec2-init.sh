@@ -7,18 +7,8 @@ pip3 install --upgrade pip
 
 yes Y | sudo apt install awscli
 yes Y | sudo apt install linuxbrew-wrapper
-yes Y | sudo apt install jq
-yes Y | sudo apt install parallel
 
-git clone https://github.com/wegetu/vigilant-pancake
-cd vigilant-pancake
-git checkout branch_adam
-cd python_features
-# conda update --all
-pip3 install -r requirements.txt
-cd ..
-
-mv vigilant-pancake /home/ubuntu/environment/pancake-adam
+python3 -m pip3 install -r requirements.txt
 
 # sudo apt install postgresql-client-common
 # sudo apt-get install postgresql-client
