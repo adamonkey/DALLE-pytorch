@@ -11,6 +11,7 @@ import boto3
 from boto3.s3.transfer import S3Transfer
 import os
 import shutil
+import json
 import pandas as pd 
 
 session = boto3.Session(profile_name='default')
@@ -42,9 +43,10 @@ class TextImageDataset(Dataset):
         df = pd.read_csv("Train_GCC-dalle.tsv", sep='\t')
         print('Loading training data finished.')
 
-        self.text_files = df.set_index('filename').to_json(orient='index')
+        self.text_files = json.loads(df.set_index('filename').to_json(orient='index'))
         print('Creating text_files finished.')
-
+        self.keys = list(self.text_files.keys())
+        
         self.text_len = text_len
         self.truncate_captions = truncate_captions
         self.resize_ratio = resize_ratio
